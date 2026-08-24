@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KeyRing — Listing audits & calendar sync for independent hosts</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,500&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#182A3D;
+    --ink-soft:#48586B;
+    --parchment:#F5F1E6;
+    --panel:#FFFFFF;
+    --brass:#B9862F;
+    --brass-soft:#E9D9B8;
+    --verdigris:#4B7A70;
+    --coral:#BD463C;
+    --line:#DED5C1;
+    --airbnb:#C1443C;
+    --vrbo:#2E6E8E;
+    --booking:#1B5E3B;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--parchment);
+    color:var(--ink);
+    font-family:'IBM Plex Sans',sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:920px;margin:0 auto;padding:0 20px 80px;}
+
+  header.top{
+    background:var(--ink);
+    color:var(--parchment);
+    padding:28px 20px 0;
+    border-bottom:4px solid var(--brass);
+  }
+  .brandrow{
+    max-width:920px;margin:0 auto;
+    display:flex;align-items:center;gap:14px;
+    padding-bottom:22px;
+  }
+  .ringmark{width:46px;height:46px;flex:0 0 auto;}
+  .brandtext h1{
+    font-family:'Fraunces',serif;
+    font-weight:600;
+    font-size:1.6rem;
+    margin:0;
+    letter-spacing:0.2px;
+  }
+  .brandtext p{
+    margin:2px 0 0;
+    font-size:0.82rem;
+    color:#C9D2DC;
+    font-weight:400;
+  }
+  nav.tabs{
+    max-width:920px;margin:0 auto;
+    display:flex;gap:4px;
+    padding:0 0;
+  }
+  nav.tabs button{
+    background:transparent;
+    border:none;
+    color:#AEB9C6;
+    font-family:'IBM Plex Sans',sans-serif;
+    font-size:0.92rem;
+    font-weight:600;
+    padding:12px 18px;
+    cursor:pointer;
+    border-bottom:3px solid transparent;
+    transition:color .15s ease, border-color .15s ease;
+  }
+  nav.tabs button.active{
+    color:#fff;
+    border-bottom:3px solid var(--brass);
+  }
+  nav.tabs button:hover{color:#fff;}
+
+  section.panel{display:none;padding-top:32px;}
+  section.panel.active{display:block;}
+
+  .eyebrow{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:0.72rem;
+    text-transform:uppercase;
+    letter-spacing:0.08em;
+    color:var(--brass);
+    margin:0 0 6px;
+  }
+  h2.panel-title{
+    font-family:'Fraunces',serif;
+    font-weight:600;
+    font-size:1.5rem;
+    margin:0 0 8px;
+  }
+  p.panel-desc{
+    color:var(--ink-soft);
+    max-width:60ch;
+    line-height:1.5;
+    margin:0 0 28px;
+    font-size:0.95rem;
+  }
+
+  .grid{display:grid;grid-template-columns:1fr;gap:22px;}
+  @media(min-width:760px){
+    .grid.two{grid-template-columns:1fr 1fr;}
+  }
+
+  .card{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:2px;
+    padding:22px;
+  }
+  label{
+    display:block;
+    font-size:0.78rem;
+    font-weight:600;
+    color:var(--ink-soft);
+    margin:16px 0 6px;
+    text-transform:uppercase;
+    letter-spacing:0.04em;
+  }
+  label:first-of-type{margin-top:0;}
+  input[type=text], input[type=number], input[type=url], textarea{
+    width:100%;
+    font-family:'IBM Plex Sans',sans-serif;
+    font-size:0.92rem;
+    border:1px solid var(--line);
+    background:var(--parchment);
+    padding:10px 12px;
+    border-radius:2px;
+    color:var(--ink);
+  }
+  input:focus, textarea:focus{
+    outline:2px solid var(--brass);
+    outline-offset:1px;
+  }
+  textarea{resize:vertical;min-height:80px;font-family:'IBM Plex Sans',sans-serif;}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+
+  button.primary{
+    margin-top:22px;
+    background:var(--ink);
+    color:#fff;
+    border:none;
+    font-family:'IBM Plex Sans',sans-serif;
+    font-weight:600;
+    font-size:0.92rem;
+    padding:12px 20px;
+    border-radius:2px;
+    cursor:pointer;
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+  }
+  button.primary:hover{background:#233A53;}
+  button.primary:disabled{background:#9AA5B1;cursor:wait;}
+
+  .spinner{
+    width:14px;height:14px;
+    border:2px solid rgba(255,255,255,0.35);
+    border-top-color:#fff;
+    border-radius:50%;
+    animation:spin .7s linear infinite;
+    display:none;
+  }
+  .spinner.on{display:inline-block;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  .empty{
+    border:1px dashed var(--line);
+    border-radius:2px;
+    padding:36px 22px;
+    text-align:center;
+    color:var(--ink-soft);
+    font-size:0.9rem;
+  }
+
+  .score-badge{
+    display:inline-flex;
+    align-items:baseline;
+    gap:6px;
+    font-family:'Fraunces',serif;
+  }
+  .score-badge .num{font-size:2.4rem;font-weight:600;line-height:1;}
+  .score-badge .of{font-size:0.9rem;color:var(--ink-soft);}
+
+  .resultlist{list-style:none;margin:14px 0 0;padding:0;}
+  .resultlist li{
+    padding:10px 0 10px 22px;
+    border-bottom:1px solid var(--line);
+    position:relative;
+    font-size:0.9rem;
+    line-height:1.45;
+  }
+  .resultlist li:last-child{border-bottom:none;}
+  .resultlist.fix li::before{
+    content:"";
+    position:absolute;left:0;top:15px;
+    width:9px;height:9px;
+    background:var(--coral);
+    border-radius:50%;
+  }
+  .resultlist.strength li::before{
+    content:"";
+    position:absolute;left:0;top:15px;
+    width:9px;height:9px;
+    background:var(--verdigris);
+    border-radius:50%;
+  }
+  .price-note{
+    margin-top:18px;
+    padding:14px 16px;
+    background:var(--brass-soft);
+    border-left:3px solid var(--brass);
+    font-size:0.88rem;
+    line-height:1.5;
+  }
+  h3.sub{
+    font-family:'IBM Plex Sans',sans-serif;
+    font-size:0.8rem;
+    text-transform:uppercase;
+    letter-spacing:0.05em;
+    color:var(--ink-soft);
+    margin:22px 0 4px;
+  }
+  h3.sub:first-child{margin-top:0;}
+
+  .platform-inputs{display:flex;flex-direction:column;gap:16px;}
+  .platform-row{display:flex;gap:12px;align-items:flex-start;}
+  .tag{
+    flex:0 0 88px;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:0.72rem;
+    font-weight:500;
+    color:#fff;
+    text-align:center;
+    padding:9px 6px;
+    border-radius:2px;
+  }
+  .tag.airbnb{background:var(--airbnb);}
+  .tag.vrbo{background:var(--vrbo);}
+  .tag.booking{background:var(--booking);}
+  .platform-row input{flex:1;}
+  .fallback-paste{display:none;margin-top:8px;}
+  .fallback-paste.on{display:block;}
+  .fallback-note{
+    font-size:0.78rem;
+    color:var(--coral);
+    margin-top:6px;
+  }
+
+  .timeline{margin-top:26px;}
+  .conflict-banner{
+    padding:12px 16px;
+    border-left:3px solid var(--coral);
+    background:#F6E4E2;
+    font-size:0.88rem;
+    margin-bottom:16px;
+    font-weight:500;
+  }
+  .clear-banner{
+    padding:12px 16px;
+    border-left:3px solid var(--verdigris);
+    background:#E6EEEC;
+    font-size:0.88rem;
+    margin-bottom:16px;
+    font-weight:500;
+  }
+  table.ledger{width:100%;border-collapse:collapse;font-size:0.85rem;}
+  table.ledger th{
+    text-align:left;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:0.7rem;
+    text-transform:uppercase;
+    letter-spacing:0.05em;
+    color:var(--ink-soft);
+    border-bottom:1px solid var(--line);
+    padding:8px 8px;
+  }
+  table.ledger td{
+    padding:9px 8px;
+    border-bottom:1px solid var(--line);
+    font-family:'IBM Plex Mono',monospace;
+    font-size:0.82rem;
+  }
+  table.ledger tr.conflict td{background:#F6E4E2;}
+  .dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px;}
+
+  .footnote{
+    margin-top:40px;
+    font-size:0.78rem;
+    color:var(--ink-soft);
+    border-top:1px solid var(--line);
+    padding-top:16px;
+    line-height:1.5;
+  }
+  .errbox{
+    margin-top:14px;
+    padding:12px 14px;
+    background:#F6E4E2;
+    border-left:3px solid var(--coral);
+    font-size:0.85rem;
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="brandrow">
+    <svg class="ringmark" viewBox="0 0 48 48" fill="none">
+      <circle cx="24" cy="16" r="9" stroke="#E9D9B8" stroke-width="2.5"/>
+      <rect x="15" y="27" width="6" height="12" rx="1" fill="#C1443C"/>
+      <rect x="21" y="30" width="6" height="9" rx="1" fill="#2E6E8E"/>
+      <rect x="27" y="26" width="6" height="13" rx="1" fill="#1B5E3B"/>
+    </svg>
+    <div class="brandtext">
+      <h1>KeyRing</h1>
+      <p>AI listing audits &amp; one calendar for every platform</p>
+    </div>
+  </div>
+  <nav class="tabs">
+    <button class="active" data-tab="audit">Listing Audit</button>
+    <button data-tab="sync">Calendar Ring</button>
+  </nav>
+</header>
+
+<div class="wrap">
+
+  <!-- PANEL 1: LISTING AUDIT -->
+  <section class="panel active" id="panel-audit">
+    <p class="eyebrow">Phase 1</p>
+    <h2 class="panel-title">Find out why bookings are slow</h2>
+    <p class="panel-desc">Paste in what's currently on your listing. KeyRing scores it against what actually drives bookings right now, and ranks the fixes by impact — not a generic checklist.</p>
+
+    <div class="grid two">
+      <div class="card">
+        <label for="l-title">Listing title</label>
+        <input type="text" id="l-title" placeholder="e.g. Sunny 2BR near the beach, sleeps 4">
+
+        <label for="l-desc">Listing description</label>
+        <textarea id="l-desc" placeholder="Paste your full description text here"></textarea>
+
+        <div class="row2">
+          <div>
+            <label for="l-price">Nightly price (USD)</label>
+            <input type="number" id="l-price" placeholder="145">
+          </div>
+          <div>
+            <label for="l-photos">Number of photos</label>
+            <input type="number" id="l-photos" placeholder="12">
+          </div>
+        </div>
+
+        <label for="l-amenities">Amenities (comma separated)</label>
+        <input type="text" id="l-amenities" placeholder="wifi, pool, self check-in, parking">
+
+        <label for="l-area">City / area (for price context)</label>
+        <input type="text" id="l-area" placeholder="e.g. Austin, TX">
+
+        <button class="primary" id="btn-audit">
+          <span class="spinner" id="audit-spinner"></span>
+          <span id="audit-btn-text">Run audit</span>
+        </button>
+        <div id="audit-error"></div>
+      </div>
+
+      <div class="card" id="audit-results">
+        <div class="empty">Fill in your listing details and run the audit — results appear here.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PANEL 2: CALENDAR SYNC -->
+  <section class="panel" id="panel-sync">
+    <p class="eyebrow">Phase 2</p>
+    <h2 class="panel-title">One calendar, every platform</h2>
+    <p class="panel-desc">Drop in the iCal export link from each platform you list on. KeyRing lines them up on one timeline and flags any dates that overlap — the moment a double-booking becomes possible.</p>
+
+    <div class="card">
+      <div class="platform-inputs" id="platform-inputs">
+        <div class="platform-row" data-source="airbnb">
+          <span class="tag airbnb">Airbnb</span>
+          <input type="url" placeholder="https://www.airbnb.com/calendar/ical/xxxxx.ics?s=xxxx" data-url="airbnb">
+        </div>
+        <div class="platform-row" data-source="vrbo">
+          <span class="tag vrbo">Vrbo</span>
+          <input type="url" placeholder="https://www.vrbo.com/icalendar/xxxxx.ics" data-url="vrbo">
+        </div>
+        <div class="platform-row" data-source="booking">
+          <span class="tag booking">Booking.com</span>
+          <input type="url" placeholder="https://admin.booking.com/.../calendar.ics" data-url="booking">
+        </div>
+      </div>
+
+      <button class="primary" id="btn-sync">
+        <span class="spinner" id="sync-spinner"></span>
+        <span id="sync-btn-text">Sync calendars</span>
+      </button>
+      <p class="fallback-note" id="sync-note" style="display:none;">Some platforms block direct browser access to their .ics link. Where that happens, paste the calendar's raw text instead — open the .ics link in a new tab, copy everything, and paste it below.</p>
+    </div>
+
+    <div class="timeline" id="sync-results"></div>
+  </section>
+
+  <p class="footnote">
+    Prototype scope — the Listing Audit calls Claude directly from this page to generate live analysis. The Calendar Ring parses real .ics calendar files client-side; if a platform blocks direct fetch from the browser (common with Airbnb/Vrbo), use the paste fallback that appears automatically. Nothing you enter here is stored anywhere — it lives only in this browser tab.
+  </p>
+</div>
+
+<script>
+// ---------- TAB SWITCHING ----------
+document.querySelectorAll('nav.tabs button').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('nav.tabs button').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('section.panel').forEach(p=>p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('panel-'+btn.dataset.tab).classList.add('active');
+  });
+});
+
+// ---------- PHASE 1: LISTING AUDIT ----------
+const auditBtn = document.getElementById('btn-audit');
+const auditSpinner = document.getElementById('audit-spinner');
+const auditBtnText = document.getElementById('audit-btn-text');
+const auditResults = document.getElementById('audit-results');
+const auditError = document.getElementById('audit-error');
+
+auditBtn.addEventListener('click', async ()=>{
+  const title = document.getElementById('l-title').value.trim();
+  const desc = document.getElementById('l-desc').value.trim();
+  const price = document.getElementById('l-price').value.trim();
+  const photos = document.getElementById('l-photos').value.trim();
+  const amenities = document.getElementById('l-amenities').value.trim();
+  const area = document.getElementById('l-area').value.trim();
+
+  auditError.innerHTML = '';
+
+  if(!title && !desc){
+    auditError.innerHTML = '<div class="errbox">Add at least a title or description before running the audit.</div>';
+    return;
+  }
+
+  auditBtn.disabled = true;
+  auditSpinner.classList.add('on');
+  auditBtnText.textContent = 'Analyzing...';
+
+  const prompt = `You are auditing a short-term rental listing for an independent host who is worried bookings have slowed down. Respond with ONLY raw JSON, no markdown fences, no preamble, matching exactly this shape:
+{"score": <integer 0-100>, "strengths": [<2-4 short strings>], "fixes": [<3-5 short strings, each one concrete actionable fix, ranked most-impactful first>], "price_note": "<one short paragraph on whether the price seems reasonable for the area given what's described, and why>"}
+
+Listing details:
+Title: ${title || "(not provided)"}
+Description: ${desc || "(not provided)"}
+Nightly price: ${price ? "$"+price : "(not provided)"}
+Photo count: ${photos || "(not provided)"}
+Amenities: ${amenities || "(not provided)"}
+Area: ${area || "(not provided)"}
+
+Score and fixes should reflect what actually drives Airbnb/Vrbo bookings: photo quality and count, description clarity and keywords, price competitiveness for the stated area, amenity coverage, and trust signals. Be specific and concrete, not generic.`;
+
+  try{
+    const response = await fetch("/.netlify/functions/audit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt })
+    });
+    const data = await response.json();
+    const textBlock = (data.content || []).map(b=>b.text||'').join('\n');
+    const clean = textBlock.replace(/```json|```/g,'').trim();
+    const parsed = JSON.parse(clean);
+    renderAuditResults(parsed);
+  }catch(err){
+    auditError.innerHTML = '<div class="errbox">Could not complete the audit right now. Try again in a moment.</div>';
+    console.error(err);
+  }finally{
+    auditBtn.disabled = false;
+    auditSpinner.classList.remove('on');
+    auditBtnText.textContent = 'Run audit';
+  }
+});
+
+function renderAuditResults(r){
+  let color = r.score >= 75 ? 'var(--verdigris)' : (r.score >= 50 ? 'var(--brass)' : 'var(--coral)');
+  let html = `
+    <div class="score-badge" style="color:${color};">
+      <span class="num">${r.score}</span><span class="of">/ 100 listing health</span>
+    </div>
+    <h3 class="sub">What's working</h3>
+    <ul class="resultlist strength">
+      ${r.strengths.map(s=>`<li>${escapeHtml(s)}</li>`).join('')}
+    </ul>
+    <h3 class="sub">Fixes, ranked by impact</h3>
+    <ul class="resultlist fix">
+      ${r.fixes.map(s=>`<li>${escapeHtml(s)}</li>`).join('')}
+    </ul>
+    <div class="price-note">${escapeHtml(r.price_note)}</div>
+  `;
+  auditResults.innerHTML = html;
+}
+
+function escapeHtml(s){
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+// ---------- PHASE 2: CALENDAR SYNC ----------
+const syncBtn = document.getElementById('btn-sync');
+const syncSpinner = document.getElementById('sync-spinner');
+const syncBtnText = document.getElementById('sync-btn-text');
+const syncResults = document.getElementById('sync-results');
+const syncNote = document.getElementById('sync-note');
+
+function parseICS(text){
+  const events = [];
+  const blocks = text.split('BEGIN:VEVENT').slice(1);
+  blocks.forEach(block=>{
+    const body = block.split('END:VEVENT')[0];
+    const start = extractDate(body, 'DTSTART');
+    const end = extractDate(body, 'DTEND');
+    const summaryMatch = body.match(/SUMMARY:(.*)/);
+    const summary = summaryMatch ? summaryMatch[1].trim() : 'Blocked';
+    if(start && end){
+      events.push({start, end, summary});
+    }
+  });
+  return events;
+}
+
+function extractDate(body, field){
+  const re = new RegExp(field + '(;[^:]*)?:([0-9TZ]+)');
+  const m = body.match(re);
+  if(!m) return null;
+  const raw = m[2];
+  const y = raw.substring(0,4), mo = raw.substring(4,6), d = raw.substring(6,8);
+  return new Date(`${y}-${mo}-${d}T00:00:00`);
+}
+
+function fmtDate(d){
+  return d.toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'});
+}
+
+async function tryFetchICS(url){
+  const resp = await fetch(url);
+  if(!resp.ok) throw new Error('fetch failed');
+  return await resp.text();
+}
+
+syncBtn.addEventListener('click', async ()=>{
+  const sources = ['airbnb','vrbo','booking'];
+  const urls = {};
+  sources.forEach(s=>{
+    urls[s] = document.querySelector(`input[data-url="${s}"]`).value.trim();
+  });
+
+  const activeSources = sources.filter(s=>urls[s]);
+  if(activeSources.length === 0){
+    syncResults.innerHTML = '<div class="errbox">Add at least one calendar link to sync.</div>';
+    return;
+  }
+
+  syncBtn.disabled = true;
+  syncSpinner.classList.add('on');
+  syncBtnText.textContent = 'Syncing...';
+  syncResults.innerHTML = '';
+
+  let allEvents = [];
+  let anyFailed = false;
+
+  for(const source of activeSources){
+    try{
+      const text = await tryFetchICS(urls[source]);
+      const events = parseICS(text).map(e=>({...e, source}));
+      allEvents = allEvents.concat(events);
+    }catch(err){
+      anyFailed = true;
+      addFallbackPaste(source);
+    }
+  }
+
+  syncBtn.disabled = false;
+  syncSpinner.classList.remove('on');
+  syncBtnText.textContent = 'Sync calendars';
+
+  if(anyFailed){
+    syncNote.style.display = 'block';
+  }
+
+  if(allEvents.length > 0){
+    renderTimeline(allEvents);
+  }else if(!anyFailed){
+    syncResults.innerHTML = '<div class="empty">No blocked dates found in the calendars provided.</div>';
+  }
+});
+
+function addFallbackPaste(source){
+  const row = document.querySelector(`.platform-row[data-source="${source}"]`);
+  if(row.nextElementSibling && row.nextElementSibling.classList.contains('fallback-paste')) return;
+  const div = document.createElement('div');
+  div.className = 'fallback-paste on';
+  div.innerHTML = `
+    <label>Paste ${source} .ics text (couldn't fetch it directly)</label>
+    <textarea data-paste="${source}" placeholder="BEGIN:VCALENDAR..."></textarea>
+    <button class="primary" style="margin-top:10px;" data-parse-paste="${source}">Parse pasted calendar</button>
+  `;
+  row.after(div);
+  div.querySelector(`[data-parse-paste="${source}"]`).addEventListener('click', ()=>{
+    const text = div.querySelector(`[data-paste="${source}"]`).value;
+    const events = parseICS(text).map(e=>({...e, source}));
+    if(events.length===0){
+      div.querySelector(`[data-paste="${source}"]`).nextElementSibling.insertAdjacentHTML('afterend','');
+      return;
+    }
+    renderTimeline(events);
+  });
+}
+
+function renderTimeline(events){
+  events.sort((a,b)=>a.start - b.start);
+
+  // conflict detection: overlap between events from different sources
+  const conflicts = new Set();
+  for(let i=0;i<events.length;i++){
+    for(let j=i+1;j<events.length;j++){
+      const a = events[i], b = events[j];
+      if(a.source === b.source) continue;
+      const overlap = a.start < b.end && b.start < a.end;
+      if(overlap){
+        conflicts.add(i);
+        conflicts.add(j);
+      }
+    }
+  }
+
+  const sourceColor = {airbnb:'var(--airbnb)', vrbo:'var(--vrbo)', booking:'var(--booking)'};
+  const sourceLabel = {airbnb:'Airbnb', vrbo:'Vrbo', booking:'Booking.com'};
+
+  let banner = conflicts.size > 0
+    ? `<div class="conflict-banner">⚠ ${conflicts.size} date range${conflicts.size>1?'s':''} overlap across platforms — double-booking risk.</div>`
+    : `<div class="clear-banner">✓ No overlapping dates found across the calendars synced.</div>`;
+
+  let rows = events.map((e,i)=>`
+    <tr class="${conflicts.has(i)?'conflict':''}">
+      <td><span class="dot" style="background:${sourceColor[e.source]};"></span>${sourceLabel[e.source]}</td>
+      <td>${fmtDate(e.start)}</td>
+      <td>${fmtDate(e.end)}</td>
+      <td>${escapeHtml(e.summary)}</td>
+    </tr>
+  `).join('');
+
+  syncResults.innerHTML = `
+    ${banner}
+    <table class="ledger">
+      <thead><tr><th>Platform</th><th>Check-in</th><th>Check-out</th><th>Note</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+}
+</script>
+</body>
+</html>
