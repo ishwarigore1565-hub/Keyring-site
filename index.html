@@ -550,6 +550,18 @@ async function tryFetchICS(url){
   return await resp.text();
 }
 
+// Accumulates events per source so parsing one platform doesn't erase
+// the results already shown for another platform.
+const syncedEventsStore = {};
+
+function updateSourceAndRender(source, events){
+  syncedEventsStore[source] = events;
+  const merged = Object.values(syncedEventsStore).flat();
+  if(merged.length > 0){
+    renderTimeline(merged);
+  }
+}
+
 syncBtn.addEventListener('click', async ()=>{
   const sources = ['airbnb','vrbo','booking'];
   const urls = {};
@@ -568,14 +580,15 @@ syncBtn.addEventListener('click', async ()=>{
   syncBtnText.textContent = 'Syncing...';
   syncResults.innerHTML = '';
 
-  let allEvents = [];
   let anyFailed = false;
+  let anySucceeded = false;
 
   for(const source of activeSources){
     try{
       const text = await tryFetchICS(urls[source]);
       const events = parseICS(text).map(e=>({...e, source}));
-      allEvents = allEvents.concat(events);
+      updateSourceAndRender(source, events);
+      anySucceeded = true;
     }catch(err){
       anyFailed = true;
       addFallbackPaste(source);
@@ -590,9 +603,7 @@ syncBtn.addEventListener('click', async ()=>{
     syncNote.style.display = 'block';
   }
 
-  if(allEvents.length > 0){
-    renderTimeline(allEvents);
-  }else if(!anyFailed){
+  if(!anySucceeded && !anyFailed){
     syncResults.innerHTML = '<div class="empty">No blocked dates found in the calendars provided.</div>';
   }
 });
@@ -612,10 +623,9 @@ function addFallbackPaste(source){
     const text = div.querySelector(`[data-paste="${source}"]`).value;
     const events = parseICS(text).map(e=>({...e, source}));
     if(events.length===0){
-      div.querySelector(`[data-paste="${source}"]`).nextElementSibling.insertAdjacentHTML('afterend','');
       return;
     }
-    renderTimeline(events);
+    updateSourceAndRender(source, events);
   });
 }
 
