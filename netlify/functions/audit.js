@@ -1,7 +1,6 @@
-// Uses Groq's free API tier (no card required, standard key format —
-// avoids the current issue with Gemini's new "AQ." key format).
-// Response is reshaped to match what the frontend already expects, so
-// index.html does not need to change at all.
+// Uses Groq's free API tier (no card required, standard key format).
+// Includes console logging so errors show up clearly in Netlify's
+// function logs for debugging.
 exports.handler = async function (event) {
   if (event.httpMethod !== "POST") {
     return { statusCode: 405, body: "Method not allowed" };
@@ -9,6 +8,9 @@ exports.handler = async function (event) {
 
   try {
     const { prompt } = JSON.parse(event.body);
+
+    console.log("GROQ_API_KEY present:", !!process.env.GROQ_API_KEY);
+    console.log("GROQ_API_KEY starts with:", (process.env.GROQ_API_KEY || "").slice(0, 5));
 
     const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
@@ -23,7 +25,11 @@ exports.handler = async function (event) {
       }),
     });
 
+    console.log("Groq response status:", response.status);
+
     const data = await response.json();
+    console.log("Groq response body:", JSON.stringify(data).slice(0, 500));
+
     const text =
       (data.choices &&
         data.choices[0] &&
@@ -31,12 +37,34 @@ exports.handler = async function (event) {
         data.choices[0].message.content) ||
       "";
 
+    if (!text) {
+      // Surface the actual Groq error to the browser instead of hiding it
+      return {
+        statusCode: 200,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                score: 0,
+                strengths: [],
+                fixes: ["DEBUG: " + JSON.stringify(data).slice(0, 300)],
+                price_note: "debug mode - see fixes above",
+              }),
+            },
+          ],
+        }),
+      };
+    }
+
     return {
       statusCode: 200,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ content: [{ type: "text", text }] }),
     };
   } catch (err) {
+    console.log("Function crashed:", err.message);
     return {
       statusCode: 500,
       body: JSON.stringify({ error: err.message }),
